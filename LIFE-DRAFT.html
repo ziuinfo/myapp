@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LIFE-DRAFT</title>
+<style>
+  body {
+    background: #fffaf5;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 720px;
+    margin: 20px auto;
+    padding: 10px;
+    color: #333;
+  }
+  h1 {
+    text-align: center;
+    color: #5b3a29;
+    user-select: none;
+  }
+  #welcomeMsg {
+    text-align: center;
+    color: green;
+    font-weight: bold;
+    animation: fadeout 5s forwards;
+    margin-bottom: 15px;
+    user-select: none;
+  }
+  @keyframes fadeout {
+    0% {opacity: 1;}
+    90% {opacity: 1;}
+    100% {opacity: 0;}
+  }
+  #loginSection, #submitSection, #searchSection {
+    text-align: center;
+    margin-bottom: 15px;
+  }
+  input[type="text"], textarea {
+    width: 90%;
+    padding: 10px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+  }
+  button {
+    padding: 8px 14px;
+    background: #5b3a29;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 8px;
+    user-select: none;
+    transition: background-color 0.3s ease;
+  }
+  button:hover:not(:disabled) {
+    background: #7d5945;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  .draft {
+    background: #f1f1f1;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    position: relative;
+    word-break: break-word;
+  }
+  .draft-name {
+    font-size: 14px;
+    color: #555;
+  }
+  .draft-date {
+    font-size: 12px;
+    color: #999;
+    font-style: italic;
+  }
+  .btn-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    justify-content: flex-start;
+  }
+  .like-btn, .report-btn {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    user-select: none;
+    transition: color 0.2s ease;
+  }
+  .like-btn {
+    color: #e91e63;
+  }
+  .like-btn.liked {
+    color: #ff4081;
+    font-weight: bold;
+  }
+  .like-btn:hover {
+    color: #d81b60;
+  }
+  .report-btn {
+    color: #f44336;
+  }
+  .report-btn:hover:not(:disabled) {
+    color: #ba000d;
+  }
+  .report-btn:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+  .comment-box {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-start;
+  }
+  .comment-box input {
+    width: 75%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+  }
+  .comment-box button {
+    width: 20%;
+    padding: 8px;
+    font-size: 14px;
+  }
+  .comment {
+    font-size: 14px;
+    margin-top: 4px;
+    background: #fff;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    word-break: break-word;
+  }
+  #footerStats {
+    margin-top: 20px;
+    color: #444;
+    text-align: center;
+    user-select: none;
+  }
+  footer {
+    text-align: center;
+    margin-top: 30px;
+    font-size: 14px;
+    color: #777;
+    user-select: none;
+  }
+  footer a {
+    color: #5b3a29;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  footer a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<h1>LIFE DRAFT</h1>
+<div id="welcomeMsg"></div>
+
+<div id="loginSection">
+  <input type="text" id="username" placeholder="Enter your name" autocomplete="off" />
+  <button id="loginBtn">Login</button>
+</div>
+
+<div id="submitSection" style="display:none;">
+  <textarea id="draftInput" placeholder="Write your untold story..."></textarea><br />
+  <label><input type="checkbox" id="secretCheck" /> Secret Draft</label><br />
+  <button id="submitDraftBtn">Submit Draft</button>
+</div>
+
+<div id="searchSection" style="display:none;">
+  <input type="text" id="searchBox" placeholder="Search drafts by username..." autocomplete="off" />
+</div>
+
+<div id="draftsContainer"></div>
+
+<div id="footerStats">Total drafts: 0 | Secret drafts: 0 | users: 0</div>
+
+<footer>
+  © 2025 Life-Draft - All rights reserved. Developed by <a href="https://www.facebook.com/ziusid" target="_blank" rel="noopener noreferrer">Z IU</a> 
+</footer>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue, update, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAzwuRHgVJ-qxDji740mmejk_X-sYpl8os",
+    authDomain: "life-draft.firebaseapp.com",
+    databaseURL: "https://life-draft-default-rtdb.firebaseio.com",
+    projectId: "life-draft",
+    storageBucket: "life-draft.appspot.com",
+    messagingSenderId: "893982100522",
+    appId: "1:893982100522:web:96fd06c1791e90a486c753"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  const loginSection = document.getElementById('loginSection');
+  const submitSection = document.getElementById('submitSection');
+  const searchSection = document.getElementById('searchSection');
+  const draftsContainer = document.getElementById('draftsContainer');
+  const footerStats = document.getElementById('footerStats');
+  const welcomeMsg = document.getElementById('welcomeMsg');
+  const usernameInput = document.getElementById('username');
+  const loginBtn = document.getElementById('loginBtn');
+  const draftInput = document.getElementById('draftInput');
+  const secretCheck = document.getElementById('secretCheck');
+  const submitDraftBtn = document.getElementById('submitDraftBtn');
+  const searchBox = document.getElementById('searchBox');
+
+  let username = localStorage.getItem('username');
+
+  function showWelcome(name) {
+    welcomeMsg.textContent = `Welcome, ${name}!`;
+    setTimeout(() => { welcomeMsg.textContent = ''; }, 5000);
+  }
+
+  function setupUIAfterLogin() {
+    loginSection.style.display = 'none';
+    submitSection.style.display = 'block';
+    searchSection.style.display = 'block';
+    showWelcome(username);
+  }
+
+  if (username) {
+    setupUIAfterLogin();
+    renderDrafts();
+  }
+
+  loginBtn.onclick = () => {
+    const name = usernameInput.value.trim();
+    if (name.length < 2) {
+      alert('Name must be at least 2 characters!');
+      return;
+    }
+    username = name;
+    localStorage.setItem('username', username);
+    setupUIAfterLogin();
+    renderDrafts();
+  };
+
+  submitDraftBtn.onclick = async () => {
+    const text = draftInput.value.trim();
+    if (!text) {
+      alert('Draft cannot be empty!');
+      return;
+    }
+    const secret = secretCheck.checked;
+
+    // Bad words filter
+    const badWords = ["fuck", "shit", "bitch", "asshole", "choda", "madar", "gali", "f***", "ma***"];
+    if (badWords.some(word => text.toLowerCase().includes(word))) {
+      alert('Inappropriate language is not allowed!');
+      return;
+    }
+
+    try {
+      await push(ref(db, 'drafts'), {
+        text,
+        name: username,
+        secret,
+        timestamp: Date.now(),
+        likes: 0,
+        comments: []
+      });
+      draftInput.value = '';
+      secretCheck.checked = false;
+    } catch (e) {
+      alert('Error submitting draft. Try again later.');
+      console.error(e);
+    }
+  };
+
+  searchBox.oninput = () => {
+    renderDrafts();
+  };
+
+  function renderDrafts() {
+    onValue(ref(db, 'drafts'), snapshot => {
+      draftsContainer.innerHTML = '';
+      const data = snapshot.val();
+      if (!data) {
+        footerStats.textContent = 'Total drafts: 0 | Secret drafts: 0 | Unique users: 0';
+        return;
+      }
+      const keys = Object.keys(data).reverse();
+      let total = 0, secretCount = 0;
+      const users = new Set();
+      const searchTerm = searchBox.value.trim().toLowerCase();
+
+      keys.forEach(id => {
+        const d = data[id];
+        if (searchTerm && !d.name.toLowerCase().includes(searchTerm)) return;
+
+        total++;
+        if (d.secret) secretCount++;
+        users.add(d.name);
+
+        const draftDiv = document.createElement('div');
+        draftDiv.className = 'draft';
+
+        const displayText = d.secret ? '<i>Secret Draft</i>' : d.text.replace(/\n/g, '<br>');
+        const dateStr = new Date(d.timestamp).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+
+        draftDiv.innerHTML = `
+          <p>${displayText}</p>
+          <p class="draft-name">- ${d.name}</p>
+          <p class="draft-date">${dateStr}</p>
+          <div class="btn-group">
+            <button class="like-btn ${localStorage.getItem('liked-' + id) ? 'liked' : ''}" data-id="${id}">❤️ ${d.likes || 0}</button>
+            <button class="report-btn" data-id="${id}" ${localStorage.getItem('reported-' + id) ? 'disabled' : ''}>🚩</button>
+          </div>
+          <div class="comment-box">
+            <input type="text" placeholder="Add comment..." autocomplete="off" data-id="${id}" />
+            <button data-id="${id}">Send</button>
+          </div>
+          <div id="comments-${id}"></div>
+        `;
+
+        // Render comments
+        const commentsContainer = draftDiv.querySelector(`#comments-${id}`);
+        if (d.comments && d.comments.length) {
+          d.comments.forEach(c => {
+            const commentP = document.createElement('p');
+            commentP.className = 'comment';
+            commentP.textContent = `💬 ${c.text}`;
+            commentsContainer.appendChild(commentP);
+          });
+        }
+
+        draftsContainer.appendChild(draftDiv);
+      });
+
+      footerStats.textContent = `Total drafts: ${total} | Secret drafts: ${secretCount} | Unique users: ${users.size}`;
+
+      // Setup event listeners for likes, reports and comments after rendering
+      setupButtons();
+    });
+  }
+
+  function setupButtons() {
+    // Like buttons
+    document.querySelectorAll('.like-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.getAttribute('data-id');
+        if (localStorage.getItem('liked-' + id)) {
+          alert('You already liked this draft!');
+          return;
+        }
+        const draftRef = ref(db, 'drafts/' + id);
+        try {
+          const snap = await get(draftRef);
+          const val = snap.val();
+          await update(draftRef, { likes: (val.likes || 0) + 1 });
+          localStorage.setItem('liked-' + id, '1');
+          renderDrafts();
+        } catch (e) {
+          alert('Error liking draft.');
+          console.error(e);
+        }
+      };
+    });
+
+    // Report buttons
+    document.querySelectorAll('.report-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const id = btn.getAttribute('data-id');
+        if (localStorage.getItem('reported-' + id)) {
+          alert('You already reported this draft.');
+          return;
+        }
+        try {
+          await update(ref(db, 'drafts/' + id), { reported: true });
+          localStorage.setItem('reported-' + id, '1');
+          alert('Report sent to admin!');
+          renderDrafts();
+        } catch (e) {
+          alert('Error reporting draft.');
+          console.error(e);
+        }
+      };
+    });
+
+    // Comment buttons and inputs
+    document.querySelectorAll('.comment-box').forEach(box => {
+      const input = box.querySelector('input');
+      const btn = box.querySelector('button');
+      const id = btn.getAttribute('data-id');
+
+      btn.onclick = async () => {
+        const text = input.value.trim();
+        if (!text) return;
+        const commentsRef = ref(db, 'drafts/' + id + '/comments');
+        try {
+          const snap = await get(commentsRef);
+          const oldComments = snap.exists() ? snap.val() : [];
+          oldComments.push({ text });
+          await update(ref(db, 'drafts/' + id), { comments: oldComments });
+          input.value = '';
+          renderDrafts();
+        } catch (e) {
+          alert('Error submitting comment.');
+          console.error(e);
+        }
+      };
+
+      // Submit comment on Enter key (without Shift)
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          btn.click();
+        }
+      };
+    });
+  }
+</script>
+
+</body>
+</html>
